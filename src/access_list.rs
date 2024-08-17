@@ -11,7 +11,7 @@ use std::collections::{BTreeSet, HashMap, HashSet};
 /// This can be used to construct an [AccessList] for a transaction via `eth_createAccessList`
 #[derive(Debug, Default)]
 pub struct AccessListInspector {
-    /// All addresses that should be excluded from the final accesslist
+    /// All addresses that should be excluded from the final access list
     excluded: HashSet<Address>,
     /// All addresses and touched slots
     access_list: HashMap<Address, BTreeSet<B256>>,
@@ -37,24 +37,32 @@ impl AccessListInspector {
         }
     }
 
-    /// Returns list of addresses and storage keys used by the transaction. It gives you the list of
-    /// addresses and storage keys that were touched during execution.
+    /// Returns the list of addresses and storage keys used by the transaction.
+    /// It gives you the list of addresses and storage keys that were touched during execution.
     pub fn into_access_list(self) -> AccessList {
-        let items = self.access_list.into_iter().map(|(address, slots)| AccessListItem {
-            address,
-            storage_keys: slots.into_iter().collect(),
-        });
-        AccessList(items.collect())
+        let items = self
+            .access_list
+            .into_iter()
+            .map(|(address, slots)| AccessListItem {
+                address,
+                storage_keys: slots.into_iter().collect(),
+            })
+            .collect();
+        AccessList(items)
     }
 
-    /// Returns list of addresses and storage keys used by the transaction. It gives you the list of
-    /// addresses and storage keys that were touched during execution.
+    /// Returns the list of addresses and storage keys used by the transaction.
+    /// It gives you the list of addresses and storage keys that were touched during execution.
     pub fn access_list(&self) -> AccessList {
-        let items = self.access_list.iter().map(|(address, slots)| AccessListItem {
-            address: *address,
-            storage_keys: slots.iter().copied().collect(),
-        });
-        AccessList(items.collect())
+        let items = self
+            .access_list
+            .iter()
+            .map(|(address, slots)| AccessListItem {
+                address: *address,
+                storage_keys: slots.iter().copied().collect(),
+            })
+            .collect();
+        AccessList(items)
     }
 }
 
@@ -62,11 +70,11 @@ impl<DB> Inspector<DB> for AccessListInspector
 where
     DB: Database,
 {
-    fn step(&mut self, interp: &mut Interpreter, _context: &mut EvmContext<DB>) {
+    fn step(&mut self, interp: &mut Interpreter, _context: &mut EvmContext<'_, DB>) {
         match interp.current_opcode() {
             opcode::SLOAD | opcode::SSTORE => {
                 if let Ok(slot) = interp.stack().peek(0) {
-                    let cur_contract = interp.contract.address;
+                    let cur_contract = interp.contract().address;
                     self.access_list
                         .entry(cur_contract)
                         .or_default()
